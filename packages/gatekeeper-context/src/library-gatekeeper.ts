@@ -5,9 +5,8 @@
 import { WorkerEntrypoint, DurableObject, RpcStub as NativeRpcStub, RpcTarget as NativeRpcTarget } from "cloudflare:workers";
 import { RpcStub } from "capnweb";
 import { validateRpc, skipRpcValidation } from "capnweb-validate";
-import { boundAgentCatalog } from "@gadgets/workshop-shared/gatekeeper";
 import type {
-  VendorDescription, AccountDescription, AgentCatalog, AgentCatalogRequest,
+  VendorDescription, AccountDescription, AgentCatalog,
   AppUiContext, GatekeeperUser, GatekeeperUiFrame, ApprovalQueue, ObservationAuthorizer,
   GatekeeperConnectCallback, GatekeeperConnectOptions, SupportedResource,
   Gatekeeper, GatekeeperUserVerifier, ResourceDescription, ActionKind,
@@ -318,14 +317,12 @@ export class ContextGatekeeper
   }
 
   async getAgentCatalog(
-      request: AgentCatalogRequest,
       authorizer: NativeRpcStub<ObservationAuthorizer>): Promise<AgentCatalog> {
     let domain = this.ctx.props.sharingDomain;
     let userLibrary = this.#userLibraries().get(
       this.#userLibraries().idFromName(domainName(domain, this.ctx.props.accountId)));
     let collections = await loadEnabledContextCollections(this.env, domain, userLibrary);
     let loaded = await this.#loadSkills(collections);
-    let skillEntries = buildAgentSkillCatalogEntries(loaded);
     let collectionEntries = collections
         .map(collection => ({
           id: collection.id,
@@ -334,9 +331,11 @@ export class ContextGatekeeper
         }))
         .toSorted((left, right) =>
           left.title.localeCompare(right.title) || left.id.localeCompare(right.id));
-    let entries = [...skillEntries, ...collectionEntries].toSorted((left, right) =>
-      left.title.localeCompare(right.title) || left.id.localeCompare(right.id));
-    let catalog = boundAgentCatalog(entries, request);
+    // Collections first: they are the agent's entry points into the library, and the Workshop
+    // clamps by dropping from the tail, so hundreds of skills can't push them out (skills past
+    // the cap stay reachable via the session's list()/search()). The merged list is left
+    // unsorted: the Workshop sorts the survivors, so sorting here would only pick the losers.
+    let catalog = {entries: [...collectionEntries, ...buildAgentSkillCatalogEntries(loaded)]};
     if (catalog.entries.length > 0) {
       let collectionIds = [...new Set(catalog.entries.map(entry => {
         let slash = entry.id.indexOf("/");

@@ -103,46 +103,26 @@ export type AgentCatalogEntry = {
 
 /** The discovery metadata returned for one gatekeeper session. */
 export type AgentCatalog = {
-  /** The discoverable items, already truncated to the requested/maximum count. */
+  /**
+   * The discoverable items, in the gatekeeper's priority order: the Workshop clamps the list by
+   * dropping from the tail, so entries that must survive belong first.
+   */
   entries: AgentCatalogEntry[];
-  /** True if entries were dropped to fit the limit, so the agent knows the list is partial. */
+  /** True if entries were dropped to fit the caps, so the agent knows the list is partial. */
   truncated?: boolean;
-};
-
-/** Parameters the Workshop passes when requesting a catalog. */
-export type AgentCatalogRequest = {
-  /** Maximum number of entries to return. The gatekeeper must also enforce AGENT_CATALOG_MAX_ENTRIES. */
-  limit: number;
 };
 
 /**
  * Hard caps the Workshop enforces on any catalog, regardless of what the gatekeeper returns, since
- * the catalog is injected into the agent's context as untrusted data and must stay bounded.
+ * the catalog is injected into the agent's context as untrusted data and must stay bounded. The
+ * entry count is what the context cost scales with: the catalog is inlined in the system prompt on
+ * every turn and compaction never reaches it, so at these field caps 200 entries is already ~80 KB.
+ * Anything past the cap is reached through the session API instead.
  */
-export const AGENT_CATALOG_MAX_ENTRIES = 25;
+export const AGENT_CATALOG_MAX_ENTRIES = 200;
 export const AGENT_CATALOG_MAX_ID_LENGTH = 256;
 export const AGENT_CATALOG_MAX_TITLE_LENGTH = 100;
 export const AGENT_CATALOG_MAX_DESCRIPTION_LENGTH = 400;
-
-/**
- * Helper for gatekeepers to produce a well-formed AgentCatalog: clamps the entry count to the
- * smaller of the request's limit and AGENT_CATALOG_MAX_ENTRIES, truncates each field to its cap, and
- * sets `truncated` when entries were dropped. Gatekeepers should call this rather than hand-rolling
- * the limits.
- */
-export function boundAgentCatalog(
-    entries: AgentCatalogEntry[], request: AgentCatalogRequest): AgentCatalog {
-  let requestedLimit = Number.isFinite(request.limit) ? Math.max(0, Math.floor(request.limit)) : 0;
-  let limit = Math.min(requestedLimit, AGENT_CATALOG_MAX_ENTRIES);
-  return {
-    entries: entries.slice(0, limit).map(entry => ({
-      id: entry.id.slice(0, AGENT_CATALOG_MAX_ID_LENGTH),
-      title: entry.title.slice(0, AGENT_CATALOG_MAX_TITLE_LENGTH),
-      description: entry.description.slice(0, AGENT_CATALOG_MAX_DESCRIPTION_LENGTH),
-    })),
-    truncated: entries.length > limit,
-  };
-}
 
 /** Describes a connected user account on an external service, for display purposes. */
 export type AccountDescription = {
@@ -739,10 +719,10 @@ export interface Gatekeeper<Session> extends DurableObject {
    * whose session benefits from a discovery index (e.g. an agent singleton like the Context
    * Library); most gatekeepers omit it. Catalog access is an observation, so the implementation
    * must authorize it via `authorizer.authorizeObservation()` before returning metadata. Returns
-   * null when there is no catalog. Use `boundAgentCatalog()` to enforce the size limits.
+   * null when there is no catalog. Don't pre-truncate: the Workshop applies the AGENT_CATALOG_MAX_*
+   * caps, dropping from the tail, so list the entries the agent most needs first.
    */
   getAgentCatalog?(
-    request: AgentCatalogRequest,
     authorizer: RpcStub<ObservationAuthorizer>,
   ): Promise<AgentCatalog | null>;
 
