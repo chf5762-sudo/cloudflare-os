@@ -5833,7 +5833,10 @@ class OverseerImpl implements AgentHooks {
         `workspace already contains Gadgets, since the user is asking for a new output alongside ` +
         `them rather than for an existing one to be repurposed. If the Gadget they are talking ` +
         `about already *is* one of these, work on that one instead: asking to change an existing ` +
-        `output is not a request for a second one.\n\n` +
+        `output is not a request for a second one. When an instruction names a file path for the ` +
+        `result ("save it to notes.md"), that names the output to produce, not a file to write: ` +
+        `there is no path to write it to, so use the matching format below -- creating it when the ` +
+        `workspace has none -- and fill it in through its RPC methods.\n\n` +
         formats.map(format =>
             `* ${format.output.noun} (plural: ${format.output.plural}) — blueprintId: ` +
             `${format.blueprintId}` + (format.agentHint ? `; ${format.agentHint}` : ``)).join("\n");
