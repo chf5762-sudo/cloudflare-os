@@ -65,6 +65,7 @@ try {
   console.error(err.message);
   process.exit(1);
 }
+wranglerPort = 8787;
 
 // ---------------------------------------------------------------------------
 // Discover gatekeeper packages.
@@ -542,8 +543,10 @@ const configs = [
 ];
 
 const args = configs.flatMap(c => ["-c", c]);
+args.push("--show-interactive-dev-session=false");
 if (wranglerPort) {
   args.push("--port", wranglerPort);
+  args.push("--ip", "0.0.0.0");
 } else {
   console.warn(
       "VITE_BACKEND_HOST did not include a port, so run-dev-server.js could not derive " +

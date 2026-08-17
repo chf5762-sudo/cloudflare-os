@@ -607,7 +607,7 @@ function getModelDirect(config: AiModelConfig, sessionAffinity?: string): ModelH
         model: {
           id: config.model,
           name: catalog?.name ?? config.model,
-          api: "openai-responses",
+          api: (config.apiUrl && !config.apiUrl.includes("api.openai.com")) ? "openai-completions" : "openai-responses",
           provider: "openai",
           baseUrl: config.apiUrl ?? "https://api.openai.com/v1",
           reasoning: catalog?.reasoning ?? true,
