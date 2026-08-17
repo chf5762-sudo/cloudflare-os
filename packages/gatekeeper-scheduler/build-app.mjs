@@ -9,7 +9,7 @@ const watch = process.argv.includes("--watch");
 const dev = process.argv.includes("--dev");
 
 execFileSync(
-  "pnpm",
+  process.platform === "win32" ? "pnpm.cmd" : "pnpm",
   ["exec", "vite", "build", "-c", "vite.app.config.ts", ...(watch ? ["--watch"] : [])],
   {
     cwd: packageDirectory,

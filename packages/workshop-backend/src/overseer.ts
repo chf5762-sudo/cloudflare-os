@@ -467,8 +467,8 @@ function validateBlueprintScreenshotUpload(screenshot: BlueprintScreenshotUpload
   return screenshot;
 }
 
-const MAX_CHAT_ATTACHMENTS_PER_MESSAGE = 5;
-const MAX_CHAT_ATTACHMENT_TOTAL_BYTES = 5 * 1024 * 1024;
+const MAX_CHAT_ATTACHMENTS_PER_MESSAGE = 50;
+const MAX_CHAT_ATTACHMENT_TOTAL_BYTES = 200 * 1024 * 1024;
 // Staged attachments (not associated with chat) older than this may be deleted when the gadget next stages an attachment.
 const MAX_STAGED_CHAT_ATTACHMENT_AGE_MS = 24 * 60 * 60 * 1000;
 const CHAT_ATTACHMENT_ID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

@@ -383,15 +383,33 @@ type PendingAttachment = {
   previewUrl?: string;
   mimeType: string;
   uploadState: "uploading" | "ready" | "error";
+  progress?: number;
   ref?: ChatAttachmentHandle;
   error?: string;
 };
 
-const MAX_PENDING_ATTACHMENTS = 5;
-const MAX_CHAT_ATTACHMENT_BYTES = 1024 * 1024;
-const MAX_CHAT_ATTACHMENT_TOTAL_BYTES = 5 * 1024 * 1024;
-const MAX_CHAT_ATTACHMENT_SOURCE_IMAGE_BYTES = 25 * 1024 * 1024;
+function formatAttachmentByteSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+const MAX_PENDING_ATTACHMENTS = 50;
+const MAX_CHAT_ATTACHMENT_BYTES = 50 * 1024 * 1024;
+const MAX_CHAT_ATTACHMENT_TOTAL_BYTES = 200 * 1024 * 1024;
+const MAX_CHAT_ATTACHMENT_SOURCE_IMAGE_BYTES = 50 * 1024 * 1024;
 const CHAT_ATTACHMENT_IMAGE_MAX_EDGE = 1568;
+
+function safeRandomUUID(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality?: number): Promise<Blob> {
   return new Promise((resolve, reject) => {
@@ -2212,8 +2230,10 @@ export const ChatInput = ({
 
   const uploadPendingAttachment = async (id: string, blob: Blob, mimeType: string, name?: string) => {
     try {
+      setPendingAttachments((prev) => prev.map((att) => att.id === id ? { ...att, progress: 30 } : att));
       const content = new Uint8Array(await blob.arrayBuffer());
       if (!mountedRef.current || !pendingAttachmentsRef.current.some((attachment) => attachment.id === id)) return;
+      setPendingAttachments((prev) => prev.map((att) => att.id === id ? { ...att, progress: 70 } : att));
       const overseer = await getOverseer();
       if (!mountedRef.current || !pendingAttachmentsRef.current.some((attachment) => attachment.id === id)) return;
       const ref = await overseer.uploadChatAttachment({
@@ -2225,11 +2245,11 @@ export const ChatInput = ({
         deleteStagedAttachment(ref);
         return;
       }
-      setPendingAttachments((prev) => prev.map((attachment) => attachment.id === id ? { ...attachment, uploadState: "ready", ref } : attachment));
+      setPendingAttachments((prev) => prev.map((attachment) => attachment.id === id ? { ...attachment, uploadState: "ready", progress: 100, ref } : attachment));
     } catch (err: any) {
       console.error("Failed to upload chat attachment:", err);
       if (!mountedRef.current) return;
-      reportIssue('chat.attachment-upload', err)
+      reportIssue('chat.attachment-upload', err);
       setPendingAttachments((prev) => prev.map((attachment) => attachment.id === id ? {
         ...attachment,
         uploadState: "error",
@@ -2278,7 +2298,7 @@ export const ChatInput = ({
         toasts.add({ title: `Attached files must total ${formatAttachmentSize(MAX_CHAT_ATTACHMENT_TOTAL_BYTES)} or less`, variant: "error" });
         continue;
       }
-      const id = crypto.randomUUID();
+      const id = safeRandomUUID();
       const previewUrl = mimeType.startsWith("image/") ? URL.createObjectURL(blob) : undefined;
       const pending: PendingAttachment = {
         id,
@@ -3454,29 +3474,77 @@ export const ChatInput = ({
 
         {pendingAttachments.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 px-3 pb-2 pt-1">
-            {pendingAttachments.map((attachment) => (
-              <div key={attachment.id} className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg border border-kumo-line/70 bg-kumo-elevated">
-                {attachment.previewUrl ? (
-                  <img src={attachment.previewUrl} alt={attachment.name ?? "Attached file"} className="h-full w-full object-cover" />
-                ) : (
-                  <FileIcon size={22} className="text-kumo-inactive" />
-                )}
-                {attachment.uploadState === "uploading" && (
-                  <div className="absolute inset-0 grid place-items-center rounded-lg bg-black/35 text-[10px] text-white">Uploading</div>
-                )}
-                {attachment.uploadState === "error" && (
-                  <div className="absolute inset-0 grid place-items-center rounded-lg bg-kumo-danger/80 px-1 text-center text-[9px] leading-3 text-white">Failed</div>
-                )}
-                <button
-                  type="button"
-                  aria-label="Remove attachment"
-                  onClick={() => removeAttachment(attachment.id)}
-                  className="absolute right-0.5 top-0.5 flex h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-black/55 text-white hover:bg-black/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+            {pendingAttachments.map((attachment) => {
+              const isImage = attachment.mimeType.startsWith("image/");
+              const progress = attachment.progress ?? (attachment.uploadState === "ready" ? 100 : 30);
+              return (
+                <div
+                  key={attachment.id}
+                  className={`group relative flex items-center gap-2.5 overflow-hidden rounded-xl border px-2.5 py-1.5 transition-all duration-150 ${
+                    attachment.uploadState === "error"
+                      ? "border-kumo-danger/60 bg-kumo-danger/10"
+                      : attachment.uploadState === "ready"
+                        ? "border-kumo-line/80 bg-kumo-elevated"
+                        : "border-kumo-brand/40 bg-kumo-tint/60"
+                  } ${isImage ? "h-14 w-auto min-w-[120px]" : "h-12 max-w-[240px] flex-1 min-w-[160px]"}`}
                 >
-                  <X size={10} weight="bold" />
-                </button>
-              </div>
-            ))}
+                  {isImage && attachment.previewUrl ? (
+                    <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg border border-kumo-line/50">
+                      <img src={attachment.previewUrl} alt={attachment.name ?? "Attached file"} className="h-full w-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-kumo-brand/12 text-kumo-brand">
+                      <FileIcon size={18} weight="duotone" />
+                    </div>
+                  )}
+
+                  <div className="flex min-w-0 flex-1 flex-col justify-center pr-5">
+                    <div className="truncate text-[12px] font-medium leading-4 text-kumo-default">
+                      {attachment.name ?? "Attachment"}
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[11px] leading-3 text-kumo-subtle">
+                      <span>{formatAttachmentByteSize(attachment.blob.size)}</span>
+                      <span>·</span>
+                      {attachment.uploadState === "uploading" && (
+                        <span className="flex items-center gap-1 font-medium text-kumo-brand">
+                          <ArrowsClockwise size={11} className="animate-spin" />
+                          <span>{progress}%</span>
+                        </span>
+                      )}
+                      {attachment.uploadState === "ready" && (
+                        <span className="flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">
+                          <Check size={11} weight="bold" />
+                          <span>Ready</span>
+                        </span>
+                      )}
+                      {attachment.uploadState === "error" && (
+                        <span className="flex items-center gap-1 font-medium text-kumo-danger">
+                          <WarningCircle size={11} />
+                          <span className="truncate">{attachment.error || "Failed"}</span>
+                        </span>
+                      )}
+                    </div>
+                    {attachment.uploadState === "uploading" && (
+                      <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-kumo-line/50">
+                        <div
+                          className="h-full bg-kumo-brand transition-all duration-200 ease-out"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    aria-label="Remove attachment"
+                    onClick={() => removeAttachment(attachment.id)}
+                    className="absolute right-1.5 top-1.5 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-kumo-tint text-kumo-subtle transition-colors hover:bg-black/60 hover:text-white"
+                  >
+                    <X size={11} weight="bold" />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
 

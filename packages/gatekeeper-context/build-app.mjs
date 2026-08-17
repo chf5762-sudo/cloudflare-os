@@ -16,7 +16,7 @@ console.log(
     : "building context library app single-file bundle…",
 );
 execFileSync(
-  "pnpm",
+  process.platform === "win32" ? "pnpm.cmd" : "pnpm",
   ["exec", "vite", "build", "-c", "vite.app.config.ts", ...(watch ? ["--watch"] : [])],
   {
     cwd: pkgDir,
