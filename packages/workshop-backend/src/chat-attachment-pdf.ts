@@ -26,9 +26,8 @@ import type { Api } from "@earendil-works/pi-ai";
 export const PDF_MIME_TYPE = "application/pdf";
 
 /** Whether PDF attachments can reach this pi API (natively or via bridgePdfAttachments()). */
-export function modelApiSupportsPdfAttachments(api: Api): boolean {
-  return api === "anthropic-messages" || api === "openai-responses" ||
-      api === "google-generative-ai";
+export function modelApiSupportsPdfAttachments(_api: Api): boolean {
+  return true;
 }
 
 /**
