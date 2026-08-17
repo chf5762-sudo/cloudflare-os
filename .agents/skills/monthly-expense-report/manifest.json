@@ -1,0 +1,58 @@
+{
+  "name": "monthly-expense-report",
+  "description": "用于填写出差专用的月度费用报销表（支持PHK表格式）。",
+  "version": "1.0.0",
+  "isBatchSkill": true,
+  "columns": [
+    {
+      "key": "fileName",
+      "label": "发票文件",
+      "type": "text",
+      "disabled": true
+    },
+    {
+      "key": "date",
+      "label": "发生日期",
+      "type": "text"
+    },
+    {
+      "key": "client",
+      "label": "商户/销方",
+      "type": "text"
+    },
+    {
+      "key": "amount",
+      "label": "金额 (元)",
+      "type": "number"
+    },
+    {
+      "key": "suggestedType",
+      "label": "费用科目",
+      "type": "select",
+      "options": [
+        "交通費",
+        "手機電話費",
+        "郵電費",
+        "書報雜誌",
+        "文具用品",
+        "印刷",
+        "水電瓦斯費",
+        "交際費",
+        "運費",
+        "郵費",
+        "修繕費",
+        "其它",
+        "飞机票",
+        "机票",
+        "火车票",
+        "高铁",
+        "住宿"
+      ]
+    },
+    {
+      "key": "people",
+      "label": "人数",
+      "type": "number"
+    }
+  ]
+}
