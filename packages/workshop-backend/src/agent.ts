@@ -1562,7 +1562,7 @@ export async function runAgent(
                   // before the request goes out (see chat-attachment-pdf.ts). The text part
                   // carries the filename, which the disguised part cannot.
                   return [
-                    {type: "text", text: `\n\n[Attached PDF file${filename}]`},
+                    {type: "text", text: `\n\n[Attached PDF Document${filename}]\nNote for Assistant: Use your multimodal document reading capability to parse, extract, and process all contents (including numbers, tables, dates, amounts, vendor names, and text) directly from this attached PDF file. Do not ask the user to manually type the text.`},
                     {type: "image", data: data.toBase64(), mimeType: attachment.mimeType},
                   ];
                 } else {

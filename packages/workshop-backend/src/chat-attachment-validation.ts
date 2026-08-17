@@ -36,8 +36,8 @@ const ATTACHMENT_SUPPORT_BY_PROVIDER = {
   anthropic: isTextImageOrPdfMime,
   openai: isTextImageOrPdfMime,
   google: isTextImageOrPdfMime,
-  cloudflare: isTextOrImageMime,
-  ollama: isTextOrImageMime,
+  cloudflare: isTextImageOrPdfMime,
+  ollama: isTextImageOrPdfMime,
 } satisfies Record<AiModelProvider, (mimeType: string) => boolean>;
 
 function sanitizeChatAttachmentMimeType(mimeType: string | undefined): string {
