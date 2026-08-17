@@ -46,7 +46,7 @@ try {
 
 // Directories that never contribute to a build and should be skipped by the filesystem-walk
 // fallback. (The git-based path already excludes these via .gitignore.)
-const WALK_IGNORE = new Set([".git", "node_modules", "dist", ".wrangler"]);
+const WALK_IGNORE = new Set([".git", "node_modules", "dist", ".wrangler", ".agents", "skills", ".mcp", "knowledge"]);
 
 function listFilesViaGit() {
   try {
@@ -56,7 +56,8 @@ function listFilesViaGit() {
         "git", ["ls-files", "-z", "--others", "--exclude-standard"],
         { cwd: ROOT, maxBuffer: 1024 * 1024 * 64 });
     const split = buf => buf.toString("utf8").split("\0").filter(Boolean);
-    return [...split(tracked), ...split(untracked)];
+    const files = [...split(tracked), ...split(untracked)];
+    return files.filter(f => !f.startsWith(".agents/") && !f.startsWith("skills/") && !f.startsWith(".mcp/") && !f.startsWith("knowledge/"));
   } catch {
     return null;
   }
